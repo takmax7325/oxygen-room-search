@@ -95,7 +95,7 @@ export async function collectFromUrl(url: string): Promise<{
       machine_type: null,
       image_url: null,
       score,
-      is_published: false,
+      is_published: true,
       priority: 0,
     };
 
