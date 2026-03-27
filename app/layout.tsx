@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+// 常に最新バージョンを配信（Vercel Edgeキャッシュを無効化）
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: '酸素ルーム検索 | O2Room Finder',
   description: '日本全国の酸素ルーム・酸素カプセル設置店舗を検索できます',
