@@ -25,10 +25,31 @@ interface CollectResult {
 
 export default function AiCollectPage() {
   const router = useRouter();
+
+  // ── 全hooksをここにまとめる ──
   const [mode, setMode] = useState<CollectMode>('url');
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
-  const [pwSaved, setPwSaved] = useState<boolean | null>(null); // null = 初期化中
+  const [pwSaved, setPwSaved] = useState<boolean | null>(null);
+
+  // URL mode
+  const [urlInput, setUrlInput] = useState('');
+  const [urlResult, setUrlResult] = useState<CollectLog | null>(null);
+  const [urlLoading, setUrlLoading] = useState(false);
+
+  // CSV mode
+  const [csvUrls, setCsvUrls] = useState<string[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [csvResult, setCsvResult] = useState<CollectResult | null>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvProgress, setCsvProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Search mode
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchNum, setSearchNum] = useState(10);
+  const [searchResult, setSearchResult] = useState<CollectResult | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   useEffect(() => {
     const saved = getAdminPw();
@@ -46,17 +67,14 @@ export default function AiCollectPage() {
     router.push('/');
   };
 
-  // 初期化中はなにも表示しない
+  // ── 条件レンダリングはhooksの後 ──
+
   if (pwSaved === null) return null;
 
-  // 未認証の場合はログイン画面を表示
   if (!pwSaved) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/20 to-[#F9FAFB] flex flex-col items-center justify-center px-6">
-        <div className="w-20 h-20 rounded-full bg-white shadow-card flex items-center justify-center mb-6">
-          <span className="text-4xl">🤖</span>
-        </div>
-        <h1 className="text-xl font-bold text-gray-800 mb-1">AI収集</h1>
+        <h1 className="text-xl font-bold text-gray-800 mb-1">認証画面</h1>
         <p className="text-gray-500 text-sm mb-8">管理者パスワードを入力してください</p>
         <div className="w-full max-w-sm space-y-3">
           <input
@@ -80,24 +98,7 @@ export default function AiCollectPage() {
     );
   }
 
-  // URL mode
-  const [urlInput, setUrlInput] = useState('');
-  const [urlResult, setUrlResult] = useState<CollectLog | null>(null);
-  const [urlLoading, setUrlLoading] = useState(false);
-
-  // CSV mode
-  const [csvUrls, setCsvUrls] = useState<string[]>([]);
-  const [csvFileName, setCsvFileName] = useState('');
-  const [csvResult, setCsvResult] = useState<CollectResult | null>(null);
-  const [csvLoading, setCsvLoading] = useState(false);
-  const [csvProgress, setCsvProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Search mode
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchNum, setSearchNum] = useState(10);
-  const [searchResult, setSearchResult] = useState<CollectResult | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // ── ハンドラー ──
 
   const handleUrlCollect = async () => {
     if (!urlInput.trim()) return;
@@ -115,7 +116,7 @@ export default function AiCollectPage() {
       const data = await res.json();
       if (res.status === 401) {
         sessionStorage.removeItem('admin_pw');
-        setPwSaved(false); // 認証画面に戻る
+        setPwSaved(false);
         setUrlLoading(false);
         return;
       }
@@ -196,7 +197,6 @@ export default function AiCollectPage() {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] pb-16">
-      {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
         <div className="max-w-[950px] mx-auto">
           <h1 className="font-bold text-gray-800 text-base">🤖 AI収集</h1>
@@ -205,8 +205,6 @@ export default function AiCollectPage() {
       </header>
 
       <div className="max-w-[950px] mx-auto px-4 py-4 space-y-4">
-
-        {/* AI接続状態 */}
         {aiConfigured === true && (
           <div className="px-4 py-2.5 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-700 flex items-center gap-2">
             <span>✅</span><span>Groq AI 接続済み（高精度抽出モード）</span>
@@ -218,7 +216,6 @@ export default function AiCollectPage() {
           </div>
         )}
 
-        {/* モード選択 */}
         <div className="flex gap-2">
           {([
             { key: 'url', label: 'URL単体', icon: '🔗' },
@@ -238,7 +235,6 @@ export default function AiCollectPage() {
           ))}
         </div>
 
-        {/* URL単体モード */}
         {mode === 'url' && (
           <div className="card space-y-4">
             <div>
@@ -264,7 +260,6 @@ export default function AiCollectPage() {
           </div>
         )}
 
-        {/* CSV一括モード */}
         {mode === 'csv' && (
           <div className="card space-y-4">
             <div>
@@ -311,7 +306,6 @@ export default function AiCollectPage() {
           </div>
         )}
 
-        {/* Google検索モード */}
         {mode === 'search' && (
           <div className="card space-y-4">
             <div>
