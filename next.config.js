@@ -12,7 +12,7 @@ const nextConfig = {
     return [
       {
         // HTMLページを常に最新取得（_next/static の静的アセットは除外）
-        source: '/:path((?!_next/static|_next/image|favicon).*)',
+        source: '/((?!_next/static|_next/image|favicon\.ico).*)',
         headers: [
           {
             key: 'Cache-Control',
