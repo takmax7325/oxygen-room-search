@@ -1,23 +1,20 @@
 // 酸素ルーム検索 Service Worker
-const CACHE_NAME = 'o2room-v1';
+const CACHE_NAME = 'o2room-v3';
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
 ];
 
-// インストール時 — 静的アセットをキャッシュ
+// インストール時 — 静的アセット（manifest のみ）をキャッシュ
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // キャッシュ失敗は無視（オフライン対応は後から）
-      });
+      return cache.addAll(STATIC_ASSETS).catch(() => {});
     })
   );
   self.skipWaiting();
 });
 
-// アクティベート時 — 古いキャッシュを削除
+// アクティベート時 — 古いキャッシュを全削除
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -31,71 +28,53 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// フェッチ時 — Cache First（静的）/ Network First（API）
+// フェッチ時
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // APIリクエストはネットワーク優先
-  if (url.pathname.startsWith('/api/')) {
+  // HTMLページ（ナビゲーション）は常にネットワーク優先 — キャッシュしない
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // 成功したAPIレスポンスはキャッシュしない
-          return response;
-        })
-        .catch(() => {
-          // オフライン時はエラーをそのまま返す
-          return new Response(
-            JSON.stringify({ error: 'Network unavailable' }),
-            {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' },
-            }
-          );
-        })
+      fetch(request).catch(() => caches.match(request))
     );
     return;
   }
 
-  // 静的アセット — Cache First
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
+  // APIリクエストはネットワーク優先、キャッシュしない
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(request).catch(() =>
+        new Response(JSON.stringify({ error: 'Network unavailable' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    return;
+  }
 
-      return fetch(request)
-        .then((response) => {
-          // GETリクエストのみキャッシュ
-          if (
-            request.method === 'GET' &&
-            response.status === 200 &&
-            !url.pathname.startsWith('/admin')
-          ) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+  // _next/static などの静的アセット — Cache First
+  if (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/favicon.ico'
+  ) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (request.method === 'GET' && response.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
           }
           return response;
-        })
-        .catch(() => {
-          // オフラインフォールバック
-          if (request.mode === 'navigate') {
-            return caches.match('/');
-          }
-          return new Response('', { status: 503 });
         });
-    })
-  );
-});
-
-// バックグラウンド同期（将来の拡張用）
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-stores') {
-    event.waitUntil(syncStores());
+      })
+    );
+    return;
   }
-});
 
-async function syncStores() {
-  // バックグラウンドでデータを更新（将来実装）
-}
+  // その他はネットワーク優先
+  event.respondWith(fetch(request));
+});
