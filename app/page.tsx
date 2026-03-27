@@ -40,7 +40,7 @@ export default function TopPage() {
           酸素ルーム検索
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          全国の酸素カプセル施設を探す
+          全国の酸素ルーム施設を探す
         </p>
       </header>
 
@@ -150,16 +150,7 @@ export default function TopPage() {
           </div>
         </div>
 
-        {/* 管理リンク */}
-        <div className="mt-6 text-center">
-          <a
-            href="/admin"
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            管理画面
-          </a>
-        </div>
-        </div>
+</div>
       </main>
       <BottomNav prefecture={prefecture} />
     </div>
