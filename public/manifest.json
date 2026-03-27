@@ -1,0 +1,39 @@
+{
+  "name": "酸素ルーム検索",
+  "short_name": "O2Room",
+  "description": "日本全国の酸素ルーム・酸素カプセル設置店舗を検索できます",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9FAFB",
+  "theme_color": "#7EC8E3",
+  "lang": "ja",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "東京で検索",
+      "url": "/stores?prefecture=東京都",
+      "description": "東京都の酸素ルームを検索"
+    },
+    {
+      "name": "大阪で検索",
+      "url": "/stores?prefecture=大阪府",
+      "description": "大阪府の酸素ルームを検索"
+    }
+  ]
+}
