@@ -8,7 +8,7 @@ import BottomNav from '@/components/BottomNav';
 
 function getAdminPw(): string {
   return typeof window !== 'undefined'
-    ? sessionStorage.getItem('admin_pw') || ''
+    ? localStorage.getItem('admin_pw') || ''
     : '';
 }
 
@@ -62,7 +62,7 @@ export default function AiCollectPage() {
 
   const savePw = () => {
     if (!password.trim()) return;
-    sessionStorage.setItem('admin_pw', password.trim());
+    localStorage.setItem('admin_pw', password.trim());
     setPwSaved(true);
     router.push('/');
   };
@@ -115,7 +115,7 @@ export default function AiCollectPage() {
       });
       const data = await res.json();
       if (res.status === 401) {
-        sessionStorage.removeItem('admin_pw');
+        localStorage.removeItem('admin_pw');
         setPwSaved(false);
         setUrlLoading(false);
         return;
