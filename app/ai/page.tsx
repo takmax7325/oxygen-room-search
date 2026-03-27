@@ -1,155 +1,388 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Papa from 'papaparse';
+import { CollectLog } from '@/types/store';
 import BottomNav from '@/components/BottomNav';
 
-interface Message {
-  role: 'user' | 'ai';
-  text: string;
+function getAdminPw(): string {
+  return typeof window !== 'undefined'
+    ? sessionStorage.getItem('admin_pw') || ''
+    : '';
 }
 
-const SUGGESTIONS = [
-  '酸素ルームの効果は？',
-  '初めて利用する際の注意点は？',
-  '1回の利用時間はどのくらいがおすすめ？',
-  '肩こりや疲労回復に効果はある？',
-];
+type CollectMode = 'url' | 'csv' | 'search';
 
-export default function AiPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', text: '酸素ルームについて何でも聞いてください！効果・料金・利用方法など、お気軽にどうぞ😊' },
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+interface CollectResult {
+  total: number;
+  success: number;
+  error: number;
+  duplicate: number;
+  low_score: number;
+  logs: CollectLog[];
+}
+
+export default function AiCollectPage() {
+  const [mode, setMode] = useState<CollectMode>('url');
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [password, setPassword] = useState('');
+  const [pwSaved, setPwSaved] = useState(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const saved = getAdminPw();
+    if (saved) setPwSaved(true);
+    fetch('/api/ai-status')
+      .then((r) => r.json())
+      .then((d) => setAiConfigured(d.configured))
+      .catch(() => setAiConfigured(false));
+  }, []);
 
-  const send = async (text: string) => {
-    if (!text.trim() || loading) return;
-    const userMsg = text.trim();
-    setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
-    setLoading(true);
+  const savePw = () => {
+    if (!password.trim()) return;
+    sessionStorage.setItem('admin_pw', password.trim());
+    setPwSaved(true);
+  };
 
+  // URL mode
+  const [urlInput, setUrlInput] = useState('');
+  const [urlResult, setUrlResult] = useState<CollectLog | null>(null);
+  const [urlLoading, setUrlLoading] = useState(false);
+
+  // CSV mode
+  const [csvUrls, setCsvUrls] = useState<string[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [csvResult, setCsvResult] = useState<CollectResult | null>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvProgress, setCsvProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Search mode
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchNum, setSearchNum] = useState(10);
+  const [searchResult, setSearchResult] = useState<CollectResult | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleUrlCollect = async () => {
+    if (!urlInput.trim()) return;
+    setUrlLoading(true);
+    setUrlResult(null);
     try {
-      const res = await fetch('/api/ai-chat', {
+      const res = await fetch('/api/collect/url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': getAdminPw(),
+        },
+        body: JSON.stringify({ url: urlInput.trim() }),
       });
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: 'ai', text: data.reply || data.error || '回答を取得できませんでした' },
-      ]);
-    } catch {
-      setMessages((prev) => [...prev, { role: 'ai', text: 'エラーが発生しました。もう一度お試しください。' }]);
+      setUrlResult({ url: urlInput, status: data.status, message: data.message, store: data.store, score: data.score });
+    } catch (err) {
+      setUrlResult({ url: urlInput, status: 'error', message: err instanceof Error ? err.message : '通信エラー' });
     } finally {
-      setLoading(false);
+      setUrlLoading(false);
+    }
+  };
+
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+    setCsvUrls([]);
+    setCsvResult(null);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        const rows = result.data as Record<string, string>[];
+        const urlKey = Object.keys(rows[0] || {}).find((k) => /url|link|website|site|href/i.test(k));
+        if (!urlKey) { alert('URL列が見つかりませんでした'); return; }
+        const urls = rows.map((r) => r[urlKey]).filter((u) => u && u.startsWith('http'));
+        setCsvUrls(urls);
+      },
+      error: () => alert('CSVファイルの読み込みに失敗しました'),
+    });
+  };
+
+  const handleCsvCollect = async () => {
+    if (csvUrls.length === 0) return;
+    setCsvLoading(true);
+    setCsvResult(null);
+    setCsvProgress(0);
+    const progressInterval = setInterval(() => {
+      setCsvProgress((prev) => Math.min(prev + 2, 90));
+    }, 500);
+    try {
+      const res = await fetch('/api/collect/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': getAdminPw() },
+        body: JSON.stringify({ urls: csvUrls }),
+      });
+      const data = await res.json();
+      setCsvResult(data);
+      setCsvProgress(100);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '処理エラー');
+    } finally {
+      clearInterval(progressInterval);
+      setCsvLoading(false);
+    }
+  };
+
+  const handleSearchCollect = async () => {
+    if (!searchKeyword.trim()) return;
+    setSearchLoading(true);
+    setSearchResult(null);
+    try {
+      const res = await fetch('/api/collect/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': getAdminPw() },
+        body: JSON.stringify({ keyword: searchKeyword, num: searchNum }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSearchResult(data);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '処理エラー');
+    } finally {
+      setSearchLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] flex flex-col pb-16">
+    <div className="min-h-screen bg-[#F9FAFB] pb-16">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
         <div className="max-w-[950px] mx-auto">
-          <h1 className="font-bold text-gray-800 text-base">AI相談</h1>
-          <p className="text-xs text-gray-400">酸素ルームのことを何でも聞いてみよう</p>
+          <h1 className="font-bold text-gray-800 text-base">🤖 AI収集</h1>
+          <p className="text-xs text-gray-400">AIで店舗情報を自動収集・登録</p>
         </div>
       </header>
 
-      {/* チャット */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="max-w-[950px] mx-auto space-y-3">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.role === 'ai' && (
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-2 flex-shrink-0 mt-1">
-                  <span className="text-sm">🫧</span>
-                </div>
-              )}
-              <div
-                className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-white rounded-tr-sm'
-                    : 'bg-white text-gray-700 shadow-sm rounded-tl-sm'
-                }`}
-              >
-                {msg.text}
-              </div>
-            </div>
-          ))}
+      <div className="max-w-[950px] mx-auto px-4 py-4 space-y-4">
 
-          {loading && (
-            <div className="flex justify-start">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-2 flex-shrink-0">
-                <span className="text-sm">🫧</span>
-              </div>
-              <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
-                      style={{ animationDelay: `${i * 150}ms` }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-      </div>
-
-      {/* サジェスト */}
-      {messages.length <= 1 && (
-        <div className="px-4 pb-2">
-          <div className="max-w-[950px] mx-auto flex flex-wrap gap-2">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => send(s)}
-                className="text-xs px-3 py-2 bg-white border border-gray-200 rounded-full text-gray-600 hover:border-primary hover:text-primary transition-colors"
-              >
-                {s}
+        {/* パスワード未設定の場合 */}
+        {!pwSaved && (
+          <div className="card space-y-3">
+            <p className="text-sm font-medium text-gray-700">🔑 管理者パスワードを入力</p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                className="input-field flex-1"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="パスワード"
+                onKeyDown={(e) => e.key === 'Enter' && savePw()}
+              />
+              <button className="btn-primary px-6" onClick={savePw} disabled={!password.trim()}>
+                保存
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 入力欄 */}
-      <div className="bg-white border-t border-gray-100 px-4 py-3 mb-16">
-        <div className="max-w-[950px] mx-auto flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            placeholder="質問を入力..."
-            className="flex-1 px-4 py-2.5 rounded-full border border-gray-200 text-sm focus:outline-none focus:border-primary"
-          />
-          <button
-            onClick={() => send(input)}
-            disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-40 transition-opacity flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
+        {/* AI接続状態 */}
+        {aiConfigured === true && (
+          <div className="px-4 py-2.5 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-700 flex items-center gap-2">
+            <span>✅</span><span>Groq AI 接続済み（高精度抽出モード）</span>
+          </div>
+        )}
+        {aiConfigured === false && (
+          <div className="px-4 py-2.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700">
+            ⚠️ AIキーが未設定です
+          </div>
+        )}
+
+        {/* モード選択 */}
+        <div className="flex gap-2">
+          {([
+            { key: 'url', label: 'URL単体', icon: '🔗' },
+            { key: 'csv', label: 'CSV一括', icon: '📄' },
+            { key: 'search', label: 'Google検索', icon: '🔍' },
+          ] as const).map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setMode(m.key)}
+              className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-2xl text-sm font-medium transition-all ${
+                mode === m.key ? 'bg-primary text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary'
+              }`}
+            >
+              <span className="text-xl">{m.icon}</span>
+              <span>{m.label}</span>
+            </button>
+          ))}
         </div>
+
+        {/* URL単体モード */}
+        {mode === 'url' && (
+          <div className="card space-y-4">
+            <div>
+              <label className="field-label">店舗URLを入力</label>
+              <input
+                type="url"
+                className="input-field"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://example.com/oxygen-room"
+                onKeyDown={(e) => e.key === 'Enter' && handleUrlCollect()}
+              />
+              <p className="text-xs text-gray-400 mt-1">HTMLを取得してAIが自動で店舗情報を抽出します</p>
+            </div>
+            <button
+              className="btn-primary disabled:opacity-40"
+              onClick={handleUrlCollect}
+              disabled={urlLoading || !urlInput.trim() || aiConfigured === false}
+            >
+              {urlLoading ? <><span className="animate-spin mr-2">⟳</span>AI処理中...</> : '🤖 AIで抽出・登録'}
+            </button>
+            {urlResult && <LogItem log={urlResult} />}
+          </div>
+        )}
+
+        {/* CSV一括モード */}
+        {mode === 'csv' && (
+          <div className="card space-y-4">
+            <div>
+              <label className="field-label">CSVファイルをアップロード</label>
+              <div
+                className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center cursor-pointer hover:border-primary transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="text-3xl mb-2">📄</div>
+                {csvFileName ? (
+                  <p className="text-sm font-medium text-primary">{csvFileName}</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500">クリックしてCSVを選択</p>
+                    <p className="text-xs text-gray-400 mt-1">URL列（url, link, website等）が必要です</p>
+                  </>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleCsvFile} />
+            </div>
+            {csvUrls.length > 0 && (
+              <div className="p-3 bg-blue-50 rounded-xl text-sm text-blue-700">
+                <strong>{csvUrls.length}件</strong>のURLを検出しました
+              </div>
+            )}
+            {csvLoading && (
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>処理中...</span><span>{csvProgress}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${csvProgress}%` }} />
+                </div>
+              </div>
+            )}
+            <button
+              className="btn-primary disabled:opacity-40"
+              onClick={handleCsvCollect}
+              disabled={csvLoading || csvUrls.length === 0}
+            >
+              {csvLoading ? <><span className="animate-spin mr-2">⟳</span>並列処理中...</> : `🤖 ${csvUrls.length}件を一括処理`}
+            </button>
+            {csvResult && <ResultSummary result={csvResult} />}
+          </div>
+        )}
+
+        {/* Google検索モード */}
+        {mode === 'search' && (
+          <div className="card space-y-4">
+            <div>
+              <label className="field-label">検索キーワード</label>
+              <input
+                type="text"
+                className="input-field"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="例: 酸素カプセル 東京 体験"
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchCollect()}
+              />
+            </div>
+            <div>
+              <label className="field-label">取得件数</label>
+              <div className="flex gap-2">
+                {[5, 10].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setSearchNum(n)}
+                    className={`flex-1 h-12 rounded-2xl text-sm font-medium transition-all ${searchNum === n ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}
+                  >
+                    上位{n}件
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              className="btn-primary disabled:opacity-40"
+              onClick={handleSearchCollect}
+              disabled={searchLoading || !searchKeyword.trim()}
+            >
+              {searchLoading ? <><span className="animate-spin mr-2">⟳</span>検索・収集中...</> : '🔍 検索して自動収集'}
+            </button>
+            {searchResult && <ResultSummary result={searchResult} />}
+          </div>
+        )}
       </div>
 
       <BottomNav />
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: CollectLog['status'] }) {
+  const map = {
+    success: { label: '✅ 登録成功', className: 'bg-green-100 text-green-700' },
+    error: { label: '❌ エラー', className: 'bg-red-100 text-red-600' },
+    duplicate: { label: '🔁 重複', className: 'bg-yellow-100 text-yellow-700' },
+    low_score: { label: '⚠️ スコア不足', className: 'bg-orange-100 text-orange-700' },
+  };
+  const { label, className } = map[status];
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${className}`}>{label}</span>;
+}
+
+function LogItem({ log }: { log: CollectLog }) {
+  return (
+    <div className={`p-3 rounded-xl border text-sm ${
+      log.status === 'success' ? 'border-green-200 bg-green-50'
+      : log.status === 'duplicate' ? 'border-yellow-200 bg-yellow-50'
+      : log.status === 'low_score' ? 'border-orange-200 bg-orange-50'
+      : 'border-red-200 bg-red-50'
+    }`}>
+      <div className="flex items-start gap-2">
+        <StatusBadge status={log.status} />
+        {log.score != null && <span className="text-xs text-gray-400">スコア: {log.score}</span>}
+      </div>
+      <p className="mt-1 text-gray-700">{log.message}</p>
+      <p className="text-xs text-gray-400 mt-1 truncate">{log.url}</p>
+      {log.store && <p className="text-xs text-gray-500 mt-1">🏪 {(log.store as Record<string, unknown>).name as string}</p>}
+    </div>
+  );
+}
+
+function ResultSummary({ result }: { result: CollectResult }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: '成功', value: result.success, color: 'green' },
+          { label: '重複', value: result.duplicate, color: 'yellow' },
+          { label: 'スコア不足', value: result.low_score, color: 'orange' },
+          { label: 'エラー', value: result.error, color: 'red' },
+        ].map((item) => (
+          <div key={item.label} className={`rounded-xl p-2 text-center bg-${item.color}-50 border border-${item.color}-100`}>
+            <p className="text-xl font-bold text-gray-800">{item.value}</p>
+            <p className="text-xs text-gray-500">{item.label}</p>
+          </div>
+        ))}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-600 mb-2">処理ログ（{result.logs.length}件）</p>
+        <div className="space-y-2 max-h-80 overflow-y-auto">
+          {result.logs.map((log, i) => <LogItem key={i} log={log} />)}
+        </div>
+      </div>
     </div>
   );
 }
