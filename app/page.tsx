@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PREFECTURES } from '@/types/store';
+import BottomNav from '@/components/BottomNav';
 
 interface Stats {
   avg_price_60min: number | null;
@@ -29,7 +30,7 @@ export default function TopPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/20 to-[#F9FAFB] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-primary/20 to-[#F9FAFB] flex flex-col pb-16">
       {/* ヘッダー */}
       <header className="pt-16 pb-8 px-6 text-center">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white shadow-card mb-4">
@@ -158,6 +159,7 @@ export default function TopPage() {
           </a>
         </div>
       </main>
+      <BottomNav prefecture={prefecture} />
     </div>
   );
 }

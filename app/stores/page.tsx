@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Store, SortType } from '@/types/store';
 import { calcDistance, formatDistance } from '@/lib/distance';
 import StoreCard from '@/components/StoreCard';
+import BottomNav from '@/components/BottomNav';
 
 function StoreListContent() {
   const searchParams = useSearchParams();
@@ -96,7 +97,7 @@ function StoreListContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-[#F9FAFB] pb-16">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
         <div className="flex items-center gap-3 max-w-xl mx-auto">
@@ -226,6 +227,7 @@ function StoreListContent() {
           </div>
         )}
       </div>
+      <BottomNav prefecture={prefecture} />
     </div>
   );
 }

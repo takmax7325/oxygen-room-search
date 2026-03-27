@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Store } from '@/types/store';
+import BottomNav from '@/components/BottomNav';
 
 export default function StoreDetailPage() {
   const params = useParams();
@@ -59,7 +60,7 @@ export default function StoreDetailPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-[#F9FAFB] pb-16">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
         <div className="flex items-center gap-3 max-w-xl mx-auto">
@@ -207,6 +208,7 @@ export default function StoreDetailPage() {
           データ品質スコア: {store.score}/100
         </div>
       </div>
+      <BottomNav />
     </div>
   );
 }
