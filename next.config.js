@@ -11,6 +11,16 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // HTMLページを常に最新取得（_next/static の静的アセットは除外）
+        source: '/:path((?!_next/static|_next/image|favicon).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+      {
         source: '/sw.js',
         headers: [
           {
