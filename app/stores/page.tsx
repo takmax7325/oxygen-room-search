@@ -23,10 +23,7 @@ function StoreListContent() {
 
   // 店舗データ取得
   useEffect(() => {
-    if (!prefecture) {
-      router.push('/');
-      return;
-    }
+    if (!prefecture) { setLoading(false); return; }
     setLoading(true);
     fetch(
       `/api/stores?prefecture=${encodeURIComponent(prefecture)}`
@@ -37,7 +34,7 @@ function StoreListContent() {
       })
       .catch(() => setStores([]))
       .finally(() => setLoading(false));
-  }, [prefecture, router]);
+  }, [prefecture]);
 
   // 現在地取得
   const getLocation = useCallback(() => {
@@ -121,9 +118,9 @@ function StoreListContent() {
           </Link>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-gray-800 truncate">
-              {prefecture}の酸素ルーム
+              {prefecture ? `${prefecture}の酸素ルーム` : '店舗一覧'}
             </h1>
-            {!loading && (
+            {!loading && prefecture && (
               <p className="text-xs text-gray-500">{stores.length}件</p>
             )}
           </div>
@@ -202,8 +199,18 @@ function StoreListContent() {
           </div>
         )}
 
+        {/* 都道府県未選択 */}
+        {!loading && !prefecture && (
+          <div className="text-center py-20">
+            <p className="text-5xl mb-4">🗾</p>
+            <p className="text-gray-500 font-medium">都道府県を選択してください</p>
+            <p className="text-gray-400 text-sm mt-1">ホームから都道府県を選んで検索できます</p>
+            <Link href="/" className="inline-block mt-6 btn-primary text-sm px-6 py-2">ホームへ戻る</Link>
+          </div>
+        )}
+
         {/* 店舗リスト */}
-        {!loading && sortedStores.length === 0 && (
+        {!loading && prefecture && sortedStores.length === 0 && (
           <div className="text-center py-20">
             <p className="text-5xl mb-4">🔍</p>
             <p className="text-gray-500 font-medium">店舗が見つかりません</p>
