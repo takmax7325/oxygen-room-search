@@ -76,7 +76,16 @@ export default function AiCollectPage() {
         body: JSON.stringify({ url: urlInput.trim() }),
       });
       const data = await res.json();
-      setUrlResult({ url: urlInput, status: data.status, message: data.message, store: data.store, score: data.score });
+      if (res.status === 401) {
+        sessionStorage.removeItem('admin_pw');
+        setPwSaved(false);
+        setUrlResult({ url: urlInput, status: 'error', message: 'パスワードが違います。再度入力してください。' });
+        setUrlLoading(false);
+        return;
+      }
+      const status: CollectLog['status'] = (['success','error','duplicate','low_score'].includes(data.status) ? data.status : 'error');
+      const message = data.message || data.error || '不明なエラー';
+      setUrlResult({ url: urlInput, status, message, store: data.store, score: data.score });
     } catch (err) {
       setUrlResult({ url: urlInput, status: 'error', message: err instanceof Error ? err.message : '通信エラー' });
     } finally {
@@ -332,13 +341,13 @@ export default function AiCollectPage() {
 }
 
 function StatusBadge({ status }: { status: CollectLog['status'] }) {
-  const map = {
+  const map: Record<string, { label: string; className: string }> = {
     success: { label: '✅ 登録成功', className: 'bg-green-100 text-green-700' },
     error: { label: '❌ エラー', className: 'bg-red-100 text-red-600' },
     duplicate: { label: '🔁 重複', className: 'bg-yellow-100 text-yellow-700' },
     low_score: { label: '⚠️ スコア不足', className: 'bg-orange-100 text-orange-700' },
   };
-  const { label, className } = map[status];
+  const { label, className } = map[status] ?? { label: '❌ エラー', className: 'bg-red-100 text-red-600' };
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${className}`}>{label}</span>;
 }
 
