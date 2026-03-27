@@ -31,9 +31,9 @@ export default function StoreCard({ store }: StoreCardProps) {
               )}
             </div>
 
-            {store.address && (
+            {(store.address || store.prefecture) && (
               <p className="text-xs text-gray-400 mt-1 truncate">
-                📍 {store.address}
+                📍 {store.prefecture && !store.address?.startsWith(store.prefecture) ? `${store.prefecture}${store.address || ''}` : store.address}
               </p>
             )}
 

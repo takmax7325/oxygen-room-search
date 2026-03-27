@@ -53,10 +53,13 @@ export default function StoreDetailPage() {
     );
   }
 
+  const fullAddress = store.prefecture && !store.address?.startsWith(store.prefecture)
+    ? `${store.prefecture}${store.address || ''}`
+    : store.address || store.prefecture || '';
   const googleMapsUrl = store.lat && store.lng
     ? `https://www.google.com/maps/search/?api=1&query=${store.lat},${store.lng}`
-    : store.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address)}`
+    : fullAddress
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
     : null;
 
   return (
@@ -113,11 +116,11 @@ export default function StoreDetailPage() {
 
           {/* 詳細情報 */}
           <div className="space-y-3">
-            {store.address && (
+            {(store.address || store.prefecture) && (
               <InfoRow
                 icon="📍"
                 label="住所"
-                value={store.address}
+                value={store.prefecture && !store.address?.startsWith(store.prefecture) ? `${store.prefecture}${store.address || ''}` : (store.address || store.prefecture || '')}
               />
             )}
             {store.price && (
