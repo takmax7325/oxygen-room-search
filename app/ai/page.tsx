@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import { CollectLog } from '@/types/store';
 import BottomNav from '@/components/BottomNav';
@@ -23,14 +24,15 @@ interface CollectResult {
 }
 
 export default function AiCollectPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<CollectMode>('url');
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
-  const [pwSaved, setPwSaved] = useState(false);
+  const [pwSaved, setPwSaved] = useState<boolean | null>(null); // null = 初期化中
 
   useEffect(() => {
     const saved = getAdminPw();
-    if (saved) setPwSaved(true);
+    setPwSaved(!!saved);
     fetch('/api/ai-status')
       .then((r) => r.json())
       .then((d) => setAiConfigured(d.configured))
@@ -41,7 +43,42 @@ export default function AiCollectPage() {
     if (!password.trim()) return;
     sessionStorage.setItem('admin_pw', password.trim());
     setPwSaved(true);
+    router.push('/');
   };
+
+  // 初期化中はなにも表示しない
+  if (pwSaved === null) return null;
+
+  // 未認証の場合はログイン画面を表示
+  if (!pwSaved) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary/20 to-[#F9FAFB] flex flex-col items-center justify-center px-6">
+        <div className="w-20 h-20 rounded-full bg-white shadow-card flex items-center justify-center mb-6">
+          <span className="text-4xl">🤖</span>
+        </div>
+        <h1 className="text-xl font-bold text-gray-800 mb-1">AI収集</h1>
+        <p className="text-gray-500 text-sm mb-8">管理者パスワードを入力してください</p>
+        <div className="w-full max-w-sm space-y-3">
+          <input
+            type="password"
+            className="input-field text-center"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && savePw()}
+            placeholder="パスワード"
+            autoFocus
+          />
+          <button
+            className="btn-primary w-full disabled:opacity-40"
+            onClick={savePw}
+            disabled={!password.trim()}
+          >
+            ログイン
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // URL mode
   const [urlInput, setUrlInput] = useState('');
@@ -78,8 +115,7 @@ export default function AiCollectPage() {
       const data = await res.json();
       if (res.status === 401) {
         sessionStorage.removeItem('admin_pw');
-        setPwSaved(false);
-        setUrlResult({ url: urlInput, status: 'error', message: 'パスワードが違います。再度入力してください。' });
+        setPwSaved(false); // 認証画面に戻る
         setUrlLoading(false);
         return;
       }
@@ -169,26 +205,6 @@ export default function AiCollectPage() {
       </header>
 
       <div className="max-w-[950px] mx-auto px-4 py-4 space-y-4">
-
-        {/* パスワード未設定の場合 */}
-        {!pwSaved && (
-          <div className="card space-y-3">
-            <p className="text-sm font-medium text-gray-700">🔑 管理者パスワードを入力</p>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                className="input-field flex-1"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="パスワード"
-                onKeyDown={(e) => e.key === 'Enter' && savePw()}
-              />
-              <button className="btn-primary px-6" onClick={savePw} disabled={!password.trim()}>
-                保存
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* AI接続状態 */}
         {aiConfigured === true && (
