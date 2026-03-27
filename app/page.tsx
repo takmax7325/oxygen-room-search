@@ -46,6 +46,7 @@ export default function TopPage() {
 
       {/* メインコンテンツ */}
       <main className="flex-1 px-6 pb-safe">
+        <div className="max-w-[950px] mx-auto">
         {/* 平均価格バナー（100件以上の場合のみ表示）*/}
         {stats && stats.avg_price_60min && stats.total_count >= 100 && (
           <div className="mb-6 animate-fade-in">
@@ -157,6 +158,7 @@ export default function TopPage() {
           >
             管理画面
           </a>
+        </div>
         </div>
       </main>
       <BottomNav prefecture={prefecture} />

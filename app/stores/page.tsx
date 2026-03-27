@@ -100,7 +100,7 @@ function StoreListContent() {
     <div className="min-h-screen bg-[#F9FAFB] pb-16">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
-        <div className="flex items-center gap-3 max-w-xl mx-auto">
+        <div className="flex items-center gap-3 max-w-[950px] mx-auto">
           <Link
             href="/"
             className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -130,7 +130,7 @@ function StoreListContent() {
         </div>
       </header>
 
-      <div className="max-w-xl mx-auto px-4 py-4">
+      <div className="max-w-[950px] mx-auto px-4 py-4">
         {/* 並び替えタブ */}
         <div className="flex gap-2 mb-4 no-scrollbar overflow-x-auto pb-1">
           {SORT_OPTIONS.map((opt) => (

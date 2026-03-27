@@ -63,7 +63,7 @@ export default function StoreDetailPage() {
     <div className="min-h-screen bg-[#F9FAFB] pb-16">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3">
-        <div className="flex items-center gap-3 max-w-xl mx-auto">
+        <div className="flex items-center gap-3 max-w-[950px] mx-auto">
           <button
             onClick={() => router.back()}
             className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -88,7 +88,7 @@ export default function StoreDetailPage() {
         </div>
       </header>
 
-      <div className="max-w-xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-[950px] mx-auto px-4 py-4 space-y-4">
         {/* メイン情報カード */}
         <div className="card animate-fade-in">
           {/* 店名・都道府県 */}
