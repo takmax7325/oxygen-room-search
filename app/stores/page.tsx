@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -21,27 +20,18 @@ function StoreListContent() {
   const [geoError, setGeoError] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
 
-  // 店舗データ取得
   useEffect(() => {
     if (!prefecture) { setLoading(false); return; }
     setLoading(true);
-    fetch(
-      `/api/stores?prefecture=${encodeURIComponent(prefecture)}`
-    )
+    fetch(`/api/stores?prefecture=${encodeURIComponent(prefecture)}`)
       .then((r) => r.json())
-      .then((data) => {
-        setStores(data.stores || []);
-      })
+      .then((data) => { setStores(data.stores || []); })
       .catch(() => setStores([]))
       .finally(() => setLoading(false));
   }, [prefecture]);
 
-  // 現在地取得
   const getLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeoError(true);
-      return;
-    }
+    if (!navigator.geolocation) { setGeoError(true); return; }
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -50,15 +40,11 @@ function StoreListContent() {
         setSortType('distance');
         setGeoLoading(false);
       },
-      () => {
-        setGeoError(true);
-        setGeoLoading(false);
-      },
+      () => { setGeoError(true); setGeoLoading(false); },
       { timeout: 10000 }
     );
   }, []);
 
-  // ソート処理
   const sortedStores = [...stores]
     .map((store) => ({
       ...store,
@@ -102,18 +88,8 @@ function StoreListContent() {
             href="/"
             className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
           >
-            <svg
-              className="w-5 h-5 text-gray-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div className="flex-1 min-w-0">
@@ -134,11 +110,8 @@ function StoreListContent() {
             <button
               key={opt.value}
               onClick={() => {
-                if (opt.value === 'distance' && !userLat) {
-                  getLocation();
-                } else {
-                  setSortType(opt.value);
-                }
+                if (opt.value === 'distance' && !userLat) { getLocation(); }
+                else { setSortType(opt.value); }
               }}
               className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
                 sortType === opt.value
@@ -150,8 +123,6 @@ function StoreListContent() {
               <span>{opt.label}</span>
             </button>
           ))}
-
-          {/* 現在地取得ボタン */}
           {!userLat && sortType !== 'distance' && (
             <button
               onClick={getLocation}
@@ -159,15 +130,9 @@ function StoreListContent() {
               className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium bg-white text-gray-600 border border-dashed border-gray-300 hover:border-primary transition-all"
             >
               {geoLoading ? (
-                <>
-                  <span className="animate-spin">⟳</span>
-                  <span>取得中...</span>
-                </>
+                <><span className="animate-spin">⟳</span><span>取得中...</span></>
               ) : (
-                <>
-                  <span>📡</span>
-                  <span>現在地</span>
-                </>
+                <><span>📡</span><span>現在地</span></>
               )}
             </button>
           )}
@@ -179,22 +144,17 @@ function StoreListContent() {
           </div>
         )}
 
-        {/* 現在地情報 */}
         {userLat && (
           <div className="mb-3 px-4 py-2.5 bg-primary/10 rounded-xl text-xs text-primary-700 flex items-center gap-1.5">
-            <span>📍</span>
-            <span>現在地から距離を計算中</span>
+            <span>📍</span><span>現在地から距離を計算中</span>
           </div>
         )}
 
         {/* ローディング */}
         {loading && (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="card h-32 animate-pulse bg-gray-100"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="card h-32 animate-pulse bg-gray-100" />
             ))}
           </div>
         )}
@@ -209,19 +169,18 @@ function StoreListContent() {
           </div>
         )}
 
-        {/* 店舗リスト */}
+        {/* 店舗なし */}
         {!loading && prefecture && sortedStores.length === 0 && (
           <div className="text-center py-20">
             <p className="text-5xl mb-4">🔍</p>
             <p className="text-gray-500 font-medium">店舗が見つかりません</p>
-            <p className="text-gray-400 text-sm mt-1">
-              {prefecture}のデータを準備中です
-            </p>
+            <p className="text-gray-400 text-sm mt-1">{prefecture}のデータを準備中です</p>
           </div>
         )}
 
+        {/* 店舗リスト — iPad(md) 2列、PC(lg) 3列 */}
         {!loading && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {sortedStores.map((store, i) => (
               <div
                 key={store.id}
@@ -234,6 +193,7 @@ function StoreListContent() {
           </div>
         )}
       </div>
+
       <BottomNav prefecture={prefecture} />
     </div>
   );
@@ -241,11 +201,13 @@ function StoreListContent() {
 
 export default function StoreListPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-        <div className="text-gray-400 text-sm">読み込み中...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+          <div className="text-gray-400 text-sm">読み込み中...</div>
+        </div>
+      }
+    >
       <StoreListContent />
     </Suspense>
   );
